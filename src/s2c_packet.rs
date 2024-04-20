@@ -6,6 +6,7 @@ use crate::server::Game;
 pub enum S2cPacket {
     SyncPlayerList(bool, Vec<String>),
     SyncGame(Game),
+    PlaySound(String),
     KillYourselfNow,
     Disconnect(String),
 }

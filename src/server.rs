@@ -379,6 +379,11 @@ impl Server {
             should_update = true;
             if *val == 255 {
                 fired = Some(*key);
+            } else if *val == (15 * 4) {
+                for pl in &mut self.players {
+                    pl.send_packet(S2cPacket::PlaySound("/cock.ogg".to_string()))
+                        .await;
+                }
             }
         }
 
@@ -388,6 +393,10 @@ impl Server {
             game.advance();
 
             if fired == game.trigger_key {
+                for pl in &mut self.players {
+                    pl.send_packet(S2cPacket::PlaySound("/shoot.ogg".to_string()))
+                        .await;
+                }
                 self.player_mut(addr)
                     .unwrap()
                     .send_packet(S2cPacket::KillYourselfNow)
@@ -402,6 +411,12 @@ impl Server {
 
                 if self.players.len() == 1 {
                     self.remove_player(self.players[0].sock_addr, Some("You won :)".to_string()))
+                        .await;
+                }
+            } else {
+                println!("missfire");
+                for pl in &mut self.players {
+                    pl.send_packet(S2cPacket::PlaySound("/misfire.ogg".to_string()))
                         .await;
                 }
             }

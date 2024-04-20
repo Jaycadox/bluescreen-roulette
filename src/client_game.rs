@@ -1,12 +1,16 @@
 use egui_macroquad::{
     egui,
-    macroquad::{input::KeyCode, prelude::*},
+    macroquad::{
+        audio::{load_sound_from_bytes, play_sound, play_sound_once, PlaySoundParams},
+        input::KeyCode,
+        prelude::*,
+    },
 };
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::{
     c2s_packet::C2sPacket, kicked::KickedState, main_menu::MainMenuState, s2c_packet::S2cPacket,
-    server::Game, GameState,
+    server::Game, GameState, BUNDLE,
 };
 use anyhow::Result;
 
@@ -20,7 +24,7 @@ pub struct ClientGameState {
 }
 
 impl ClientGameState {
-    fn handle_packet(&mut self, pack: S2cPacket) -> Option<GameState> {
+    async fn handle_packet(&mut self, pack: S2cPacket) -> Option<GameState> {
         match pack {
             S2cPacket::SyncPlayerList(host, list) => {
                 self.host = host;
@@ -43,6 +47,15 @@ impl ClientGameState {
                 }
                 std::process::exit(0);
             }
+            S2cPacket::PlaySound(sound) => {
+                if let Some(bytes) = BUNDLE.get(&sound) {
+                    if let Ok(sound) = load_sound_from_bytes(bytes).await {
+                        play_sound_once(sound);
+                    }
+                }
+
+                None
+            }
         }
     }
 
@@ -50,7 +63,7 @@ impl ClientGameState {
         let mut new_game_state = None;
 
         if let Ok(Ok(packet)) = self.rx.try_recv() {
-            if let Some(new_state) = self.handle_packet(packet) {
+            if let Some(new_state) = self.handle_packet(packet).await {
                 return new_state;
             }
         }

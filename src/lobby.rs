@@ -86,6 +86,7 @@ impl LobbyState {
                 /* should not occur until game start */
                 (Some(self), None)
             }
+            S2cPacket::PlaySound(_) => (Some(self), None),
         }
     }
 

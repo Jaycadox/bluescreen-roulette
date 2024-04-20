@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::io::Cursor;
+
 use client_game::ClientGameState;
 use egui_macroquad::macroquad;
 use egui_macroquad::macroquad::prelude::*;
@@ -12,6 +15,7 @@ mod packet_channel;
 mod s2c_packet;
 mod server;
 use kicked::KickedState;
+use lazy_static::lazy_static;
 use lobby::LobbyState;
 use main_menu::MainMenuState;
 
@@ -20,6 +24,21 @@ enum GameState {
     Lobby(LobbyState),
     Kicked(KickedState),
     InGame(ClientGameState),
+}
+
+lazy_static! {
+    static ref BUNDLE: HashMap<String, Vec<u8>> = {
+        let mut m = HashMap::new();
+        let bundle = include_bytes!("bundle.pfa");
+
+        let mut reader = pfa::reader::PfaReader::new(Cursor::new(bundle)).unwrap();
+        reader.traverse_files("/", |file| {
+            println!("[Bundle] file={}", file.get_path());
+            m.insert(file.get_path().to_string(), file.get_contents().to_vec());
+        });
+
+        m
+    };
 }
 
 #[tokio::main]

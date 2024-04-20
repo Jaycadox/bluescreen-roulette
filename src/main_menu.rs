@@ -140,7 +140,7 @@ impl MainMenuState {
         }
     }
     fn get_local_ip() -> Option<String> {
-        if let Some(ifaces) = get_if_addrs::get_if_addrs().ok() {
+        if let Ok(ifaces) = get_if_addrs::get_if_addrs() {
             for iface in ifaces {
                 if iface.name.starts_with("vir") {
                     continue;
@@ -158,6 +158,6 @@ impl MainMenuState {
                 }
             }
         }
-        return None;
+        None
     }
 }
