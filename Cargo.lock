@@ -987,7 +987,7 @@ checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 [[package]]
 name = "pfa"
 version = "0.1.0"
-source = "git+https://github.com/Jaycadox/pfa#6144094f625763cf55987f73ebd6a2594defacd7"
+source = "git+https://github.com/Jaycadox/pfa#bbfc13bdc2fe3a050f0fa2adbcd8cb9404a4da89"
 dependencies = [
  "aes-gcm",
  "byteorder",

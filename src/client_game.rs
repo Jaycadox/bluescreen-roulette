@@ -1,7 +1,7 @@
 use egui_macroquad::{
     egui,
     macroquad::{
-        audio::{load_sound_from_bytes, play_sound, play_sound_once, PlaySoundParams},
+        audio::{load_sound_from_bytes, play_sound_once},
         input::KeyCode,
         prelude::*,
     },
