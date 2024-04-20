@@ -388,6 +388,11 @@ impl Server {
             game.advance();
 
             if fired == game.trigger_key {
+                self.player_mut(addr)
+                    .unwrap()
+                    .send_packet(S2cPacket::KillYourselfNow)
+                    .await;
+
                 self.remove_player(addr, Some("You lost.".to_string()))
                     .await;
 
