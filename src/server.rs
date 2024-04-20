@@ -11,7 +11,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{c2s_packet::C2sPacket, packet_channel, s2c_packet::S2cPacket};
 
-pub const PORT: u16 = 6666;
+pub const PORT: u16 = 1234;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Game {

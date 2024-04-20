@@ -58,7 +58,7 @@ impl ClientGameState {
         self.render().await;
         egui_macroquad::ui(|ctx| {
             egui::Window::new("In-game").show(ctx, |ui| {
-                ui.label(format!("Queue: {}", self.players.join(", ")));
+                ui.label(format!("Queue: {}", self.game.queue.join(", ")));
                 if ui.button("Disconnect").clicked() {
                     new_game_state = Some(GameState::MainMenu(MainMenuState::new()));
                 }

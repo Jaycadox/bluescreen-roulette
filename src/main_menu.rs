@@ -112,7 +112,7 @@ impl MainMenuState {
                             if ui.button("Connect to server").clicked() {
                                 new_gamestate = Some(LobbyState::try_new(
                                     &self.username_edit,
-                                    &format!("{}:6666", self.ip_edit),
+                                    &format!("{}:1234", self.ip_edit),
                                 ));
                             }
                             ui.separator();
@@ -124,7 +124,7 @@ impl MainMenuState {
                                     });
                                     new_gamestate = Some(LobbyState::try_new(
                                         &self.username_edit,
-                                        "0.0.0.0:6666",
+                                        "127.0.0.1:1234",
                                     ));
                                 }
                             });
