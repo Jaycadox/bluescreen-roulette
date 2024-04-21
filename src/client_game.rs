@@ -36,7 +36,6 @@ impl ClientGameState {
                 Some(GameState::Kicked(KickedState { message: msg }))
             }
             S2cPacket::SyncGame(game) => {
-                println!("Got sync: {game:?}");
                 self.game = game;
                 None
             }
@@ -45,13 +44,15 @@ impl ClientGameState {
                 {
                     bsod::bsod(); // Goodbye cruel world...
                 }
-                std::process::exit(0);
+                None
             }
-            S2cPacket::PlaySound(sound) => {
-                if let Some(bytes) = BUNDLE.get(&sound) {
+            S2cPacket::PlaySound(sound_path) => {
+                if let Some(bytes) = BUNDLE.get(&sound_path) {
                     if let Ok(sound) = load_sound_from_bytes(bytes).await {
                         play_sound_once(sound);
                     }
+                } else {
+                    eprintln!("ERROR: server requested to sync sound {sound_path}, but it was not found in bundle");
                 }
 
                 None
@@ -87,7 +88,9 @@ impl ClientGameState {
     }
 
     async fn render(&self) {
-        let turn = self.game.queue.first().unwrap();
+        let Some(turn) = self.game.queue.first() else {
+            return;
+        };
         if turn == &self.username {
             centered_text_at("Your turn...", screen_width() / 2.0, 60.0, 50.0, RED);
         } else {

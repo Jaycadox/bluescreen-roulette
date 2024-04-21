@@ -73,7 +73,6 @@ impl Server {
             return;
         };
 
-        println!("got name: {name}");
         out_tx
             .send(C2sMessage::PlayerConnect(name.clone()))
             .await
@@ -164,6 +163,8 @@ impl Server {
                     Self::handle_client(stream, rx, reply_tx).await;
                 });
             }
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
             println!("Server stopped");
         });
         let mut had_players = false;
@@ -180,7 +181,6 @@ impl Server {
 
             for pl in &mut s.players {
                 if let Ok(pack) = pl.reciever.try_recv() {
-                    println!("got pack: {pack:?}");
                     let sock = pl.sock_addr;
                     match pack {
                         C2sMessage::Packet(packet) => {
@@ -213,7 +213,7 @@ impl Server {
             }
 
             for (sock, reason) in remove_queue {
-                s.remove_player(sock, reason).await;
+                s.remove_player(sock, reason, None).await;
             }
 
             if should_resync_playerlist {
@@ -230,6 +230,8 @@ impl Server {
 
             if new_playercount == 0 && had_players {
                 token.cancel();
+
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                 break;
             }
             if let Some(game) = s.game.as_mut() {
@@ -291,9 +293,7 @@ impl Server {
             .map(|p| p.name.to_string())
     }
 
-    async fn player_joined(&mut self, addr: SocketAddr) {
-        println!("joined: {addr}");
-    }
+    async fn player_joined(&mut self, _addr: SocketAddr) {}
 
     fn addr_from_name(&mut self, name: &str) -> Option<SocketAddr> {
         self.players
@@ -302,10 +302,35 @@ impl Server {
             .map(|p| p.sock_addr)
     }
 
-    async fn remove_player(&mut self, addr: SocketAddr, reason: Option<String>) {
+    async fn remove_player(
+        &mut self,
+        addr: SocketAddr,
+        reason: Option<String>,
+        game: Option<&mut Game>,
+    ) {
+        if let Some(name) = self.player_name(addr).clone() {
+            if let Some(game) = game {
+                game.queue.retain(|qname| qname != &name);
+
+                for pl in &mut self.players {
+                    pl.send_packet(S2cPacket::SyncGame(game.clone())).await;
+                }
+            } else if let Some(game) = self.game.as_mut() {
+                game.queue.retain(|qname| qname != &name);
+
+                for pl in &mut self.players {
+                    pl.send_packet(S2cPacket::SyncGame(game.clone())).await;
+                }
+            }
+        }
+
         let Some(player) = self.player_mut(addr) else {
             return;
         };
+
+        while !player.reciever.is_empty() {
+            tokio::task::yield_now().await;
+        }
 
         player
             .disconnect(reason.unwrap_or("You have been disconnected".to_string()))
@@ -315,7 +340,6 @@ impl Server {
     }
 
     async fn on_packet(&mut self, addr: SocketAddr, pack: C2sPacket) {
-        println!("{addr}: {pack:?}");
         let Some(pl) = self.player_mut(addr) else {
             return;
         };
@@ -327,6 +351,7 @@ impl Server {
                     self.remove_player(
                         addr,
                         Some("Attempt to send host packet as non-host".to_string()),
+                        None,
                     )
                     .await;
                     return;
@@ -379,7 +404,7 @@ impl Server {
             should_update = true;
             if *val == 255 {
                 fired = Some(*key);
-            } else if *val == (15 * 4) {
+            } else if *val == (15 * 3) {
                 for pl in &mut self.players {
                     pl.send_packet(S2cPacket::PlaySound("/cock.ogg".to_string()))
                         .await;
@@ -397,26 +422,54 @@ impl Server {
                     pl.send_packet(S2cPacket::PlaySound("/shoot.ogg".to_string()))
                         .await;
                 }
+
+                if self.player_mut(addr).unwrap().host {
+                    for sock in self
+                        .players
+                        .iter()
+                        .filter(|p| !p.host)
+                        .map(|p| p.sock_addr)
+                        .collect::<Vec<_>>()
+                    {
+                        self.remove_player(
+                            sock,
+                            Some("The host has died".to_string()),
+                            Some(&mut game),
+                        )
+                        .await;
+                    }
+                    tokio::time::sleep(tokio::time::Duration::from_millis(20)).await;
+                }
+
                 self.player_mut(addr)
                     .unwrap()
                     .send_packet(S2cPacket::KillYourselfNow)
                     .await;
 
-                self.remove_player(addr, Some("You lost.".to_string()))
+                self.remove_player(addr, Some("You lost.".to_string()), Some(&mut game))
                     .await;
 
                 if game.fired.len() >= 26 {
                     game.fired.clear();
                 }
 
+                let old = game.trigger_key;
+                while game.trigger_key == old || game.fired.contains(&game.trigger_key) {
+                    game.trigger_key = rand::thread_rng().gen_range('A'..='Z') as char;
+                }
+
                 if self.players.len() == 1 {
-                    self.remove_player(self.players[0].sock_addr, Some("You won :)".to_string()))
-                        .await;
+                    println!("last player");
+                    self.remove_player(
+                        self.players[0].sock_addr,
+                        Some("You won :)".to_string()),
+                        Some(&mut game),
+                    )
+                    .await;
                 }
             } else {
-                println!("missfire");
                 for pl in &mut self.players {
-                    pl.send_packet(S2cPacket::PlaySound("/misfire.ogg".to_string()))
+                    pl.send_packet(S2cPacket::PlaySound("/missfire.ogg".to_string()))
                         .await;
                 }
             }
